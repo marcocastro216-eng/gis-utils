@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Última actualización (por campo de fecha)</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding: 12px; background: #fff; }
+  .label { font-weight: bold; margin-bottom: 4px; display: block; }
+  .value { background: #f3f3f3; padding: 6px 10px; border-radius: 6px; display: inline-block; }
+  .small { margin-top: 6px; color: #666; font-size: 12px; }
+  .error { color: #900; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<span class="label">Última actualización</span>
+<span id="last-updated" class="value">Cargando…</span>
+<div id="info" class="small"></div>
+
+<script>
+/**
+ * CONFIGURACIÓN
+ * - layerUrl: URL de la capa (sin ?f=json)
+ * - dateField: campo de fecha real de tus datos
+ */
+const CONFIG = {
+  layerUrl: 'https://geo.bcr.gob.sv/server/rest/services/Hosted/Puntos_visitados/FeatureServer/8',
+  dateField: 'last_edited_date',   // <-- CAMBIAR ESTE NOMBRE
+  locale: 'es-SV'
+};
+
+const $value = document.getElementById('last-updated');
+const $info = document.getElementById('info');
+
+async function load() {
+  try {
+    $value.textContent = 'Cargando…';
+
+    const queryUrl =
+      `${CONFIG.layerUrl}/query?` +
+      `where=1=1&outStatistics=[` +
+      `{"statisticType":"max","onStatisticField":"${CONFIG.dateField}","outStatisticFieldName":"maxFecha"}` +
+      `]&f=json`;
+
+    const res = await fetch(queryUrl);
+    const json = await res.json();
+
+    const ts = json?.features?.[0]?.attributes?.maxFecha;
+
+    if (!ts) {
+      $value.textContent = 'No disponible';
+      $value.classList.add('error');
+      $info.textContent = 'El campo no devolvió datos. Verifica que exista y contenga fechas.';
+      return;
+    }
+
+    const dt = new Date(ts);
+    const fmt = new Intl.DateTimeFormat(CONFIG.locale, {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).format(dt);
+
+    $value.textContent = fmt;
+    $info.textContent = `Campo usado: ${CONFIG.dateField}`;
+  } catch (e) {
+    console.error(e);
+    $value.textContent = 'Error';
+    $value.classList.add('error');
+    $info.textContent = 'No se pudo consultar el servicio.';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
